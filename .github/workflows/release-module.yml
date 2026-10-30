@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Module version, for example 1.0.0"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -19,7 +13,7 @@ jobs:
     uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-release-nexus.yml@master
     with:
       module_name: terraform-google-gcs
-      version: ${{ inputs.version || '' }}
+      version: ""
       terraform_version: "1.9.8"
       working_directory: "."
       nexus_repository: ${{ vars.NEXUS_RAW_REPOSITORY }}
