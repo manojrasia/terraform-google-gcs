@@ -1,23 +1,64 @@
-name: Terraform module CI
+name: Terraform GCS example CI/CD
 
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "main.tf"
+      - "variables.tf"
+      - "outputs.tf"
+      - "examples/basic/**"
+      - ".github/workflows/terraform-ci.yml"
   push:
     branches: [main]
+    paths:
+      - "main.tf"
+      - "variables.tf"
+      - "outputs.tf"
+      - "examples/basic/**"
+      - ".github/workflows/terraform-ci.yml"
 
 permissions:
   contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-google-gcs-basic
+  cancel-in-progress: false
 
 jobs:
   validate:
     uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-validate.yml@master
     with:
       terraform_version: "1.9.8"
-      working_directory: "."
+      working_directory: "examples/basic"
 
   security:
     uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-security.yml@master
     with:
       working_directory: "."
-      soft_fail: false
+
+  plan:
+    needs: [validate, security]
+    uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-plan.yml@master
+    with:
+      terraform_version: "1.9.8"
+      working_directory: "examples/basic"
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_VAR_project_id: ${{ secrets.TF_VAR_project_id }}
+      TF_VAR_bucket_name: ${{ secrets.TF_VAR_bucket_name }}
+
+  apply:
+    needs: [plan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-apply.yml@master
+    with:
+      terraform_version: "1.9.8"
+      working_directory: "examples/basic"
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
