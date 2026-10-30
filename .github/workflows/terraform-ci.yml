@@ -1,0 +1,23 @@
+name: Terraform module CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-validate.yml@master
+    with:
+      terraform_version: "1.9.8"
+      working_directory: "."
+
+  security:
+    uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-security.yml@master
+    with:
+      working_directory: "."
+      soft_fail: false
