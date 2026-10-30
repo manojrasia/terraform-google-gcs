@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   release:
-    uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-module-release.yml@terraformgcp
+    uses: manojrasia/terraform-github-actions-templates/.github/workflows/terraform-release-nexus.yml@master
     with:
       module_name: terraform-google-gcs
       version: ${{ inputs.version || '' }}
