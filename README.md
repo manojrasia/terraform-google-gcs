@@ -29,9 +29,9 @@ module "gcs" {
 }
 ```
 
-Replace the example Nexus hostname, repository, and version with your own published artifact URL.
+Replace the example Nexus hostname, repository, and version with your published artifact URL.
 
-## Validate locally
+## Local validation
 
 ```bash
 terraform fmt -check -recursive
@@ -41,43 +41,47 @@ terraform validate
 
 See [examples/basic](examples/basic) for a runnable example.
 
-## Centralized GitHub Actions release
+## Centralized GitHub Actions
 
-This repository delegates its release pipeline to the reusable workflow in
-[terraform-github-actions-templates](https://github.com/manojrasia/terraform-github-actions-templates/tree/terraformgcp).
+This module consumes reusable workflows from the central repository:
+[terraform-github-actions-templates](https://github.com/manojrasia/terraform-github-actions-templates).
 
-The caller workflow is [.github/workflows/release-module.yml](.github/workflows/release-module.yml).
-It runs when a version tag matching `v*.*.*` is pushed, or manually through
-**Actions → Release Terraform module to Nexus → Run workflow**.
+The organization-level layout is:
 
-The shared workflow performs:
+```text
+GitHub Organization
+├── terraform-github-actions-templates
+│   └── .github/workflows/
+│       ├── terraform-validate.yml
+│       ├── terraform-security.yml
+│       ├── terraform-plan.yml
+│       ├── terraform-apply.yml
+│       └── terraform-release-nexus.yml
+├── terraform-google-gcs
+└── platform-infrastructure
+```
 
-1. Checkout of this module repository.
-2. Terraform formatting check, initialization without a backend, and validation.
-3. Creation of `terraform-google-gcs-<version>.zip` and its SHA-256 checksum.
-4. Upload of both files to the configured Nexus Raw repository.
+### Workflows used by this module
 
-### Required GitHub Actions configuration
+- [terraform-ci.yml](.github/workflows/terraform-ci.yml): calls the central validation and Checkov security workflows for pull requests and pushes to `main`.
+- [release-module.yml](.github/workflows/release-module.yml): calls the central Nexus release workflow for version tags (`v*.*.*`) or manual releases.
 
-Set these repository secrets in **Settings → Secrets and variables → Actions → Secrets**:
+**Plan and apply are intentionally not called from this module repository.** This repository defines a reusable module, not a deployable root configuration. Run plan/apply from `platform-infrastructure`, where concrete values, provider authentication, remote state, and environment approvals belong.
 
-- `NEXUS_URL`: Nexus base URL, for example `https://nexus.example.com`
+### Required repository configuration
+
+In `terraform-google-gcs`, configure these Actions secrets:
+
+- `NEXUS_URL`: Nexus base URL, e.g. `https://nexus.example.com`
 - `NEXUS_USERNAME`
 - `NEXUS_PASSWORD`
 
-Set this repository variable in **Settings → Secrets and variables → Actions → Variables**:
+Configure this Actions variable:
 
-- `NEXUS_RAW_REPOSITORY`: name of the Nexus hosted Raw repository
+- `NEXUS_RAW_REPOSITORY`: hosted Nexus Raw repository name
 
-### Runner requirements
+The Nexus release workflow uses a self-hosted Linux runner labelled `self-hosted`, `linux`, and `nexus-local`, with `zip`, `curl`, and network access to Nexus.
 
-The reusable workflow currently targets a self-hosted Linux runner with labels
-`self-hosted`, `linux`, and `nexus-local`. The runner needs network access to
-Nexus and the `zip` and `curl` utilities.
+Allow the central workflow repository under **Settings → Actions → General → Access** for this repository. The central repository must also be configured to allow access from caller repositories.
 
-Because the shared workflow is in another repository, allow it under
-**terraform-google-gcs → Settings → Actions → General → Access** if GitHub
-requires cross-repository workflow access to be enabled.
-
-For production, pin the reusable workflow to a protected release tag or commit SHA
-instead of the development branch ref `@terraformgcp`.
+For production, pin reusable workflow references to protected release tags or immutable commit SHAs after testing.
